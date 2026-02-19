@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Butter Video Player</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg-light: #DCDCDC;
+            --card-bg: rgba(255,255,255,0.85);
+            --text-dark: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-dark);
+        }
+
+        .player-container {
+            width: 90%;
+            max-width: 900px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+            transition: 0.3s ease;
+        }
+
+        .player-container:hover {
+            transform: translateY(-4px);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 16px;
+            background: #000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        video::-webkit-media-controls-panel {
+            background: linear-gradient(to top, rgba(255,255,255,0.8), transparent);
+        }
+
+        .engagement-indicator {
+            margin-top: 20px;
+            height: 8px;
+            background: rgba(0,0,0,0.08);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .engagement-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ede634, #f7941e);
+            transition: width 0.3s ease;
+        }
+
+        .footer-text {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="player-container">
+        <h1>Butter Video Player</h1>
+
+        <video id="video" controls>
+            <source src="https://file.notion.so/f/f/8de57c64-2a7c-40a1-bf26-a8e3513e8b9c/8afce748-c642-4036-b9ce-0bec8a47fb63/web-demo.mp4?table=block&id=30cbcd17-eea3-80ce-8f99-fea7866602e6&spaceId=8de57c64-2a7c-40a1-bf26-a8e3513e8b9c&expirationTimestamp=1771545600000&signature=Ej1xwJ113ocYWLZsPJR7s1OfXPMa5vl8Ne_wuHbjwR8&downloadName=web-demo.mp4" type="video/mp4">
+        </video>
+
+        <div class="engagement-indicator">
+            <div class="engagement-fill" id="engagementFill"></div>
+        </div>
+
+        <div class="footer-text">
+            Engagement
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const engagementFill = document.getElementById('engagementFill');
+
+        const SLICE_SIZE = 0.5;
+        // Percentage of video user needs to engage with
+        const ENGAGEMENT_THRESHOLD = 0.25;
+        // Number of times to watch to count towards engagement
+        const ENGAGEMENT_NUM = 2;
+
+        let duration = 0;
+        let totalSlices = 0;
+        let watchCounts = [];
+        let updatedLast = [];
+        let rewatchedSlices = new Set();
+        let lastTime = 0;
+        let thresholdReached = false;
+
+        video.addEventListener('loadedmetadata', () => {
+            duration = video.duration;
+            totalSlices = Math.ceil(duration / SLICE_SIZE);
+            watchCounts = new Array(totalSlices).fill(0);
+            updatedLast = new Array(totalSlices).fill(false);
+        });
+
+        video.addEventListener('timeupdate', () => {
+            const currentTime = video.currentTime;
+
+            // If we are seeking, don't want to update the time slices between the last time and the current time
+            // The user hasn't actually watched anything between the time steps
+            if (video.seeking) {
+                lastTime = currentTime;
+                return; 
+            }
+
+            const startSlice = Math.floor(lastTime / SLICE_SIZE);
+            const endSlice = Math.floor(currentTime / SLICE_SIZE);
+
+            for (let i = startSlice; i <= endSlice; i++) {
+                if (i >= 0 && i < totalSlices && !updatedLast[i]) {
+                    watchCounts[i]++;
+                    updatedLast[i] = true;
+
+                    if (watchCounts[i] === ENGAGEMENT_NUM) {
+                        rewatchedSlices.add(i);
+                    }
+                }
+            }
+
+            lastTime = currentTime;
+            updateEngagementBar();
+            checkThreshold();
+        });
+
+        video.addEventListener('seeked', () => {
+            const currentTime = video.currentTime;
+            updatedLast.fill(false);
+            // Note the edge condition here: if a user seeks to the same time slice as the last slice, we still count it as rewatching that slice even if the entire slice wasn't played
+            lastTime = currentTime;
+        });
+
+        function updateEngagementBar() {
+            const rewatchedDuration = rewatchedSlices.size * SLICE_SIZE;
+            const rewatchPercentage = rewatchedDuration / duration;
+            engagementFill.style.width = (rewatchPercentage * 100) + "%";
+        }
+
+        function checkThreshold() {
+            if (thresholdReached) return;
+
+            const rewatchedDuration = rewatchedSlices.size * SLICE_SIZE;
+            const rewatchPercentage = rewatchedDuration / duration;
+
+            if (rewatchPercentage >= ENGAGEMENT_THRESHOLD) {
+                thresholdReached = true;
+                alert(`${ENGAGEMENT_THRESHOLD * 100}% of the video has been rewatched`);
+            }
+        }
+    </script>
+
+</body>
+</html>
