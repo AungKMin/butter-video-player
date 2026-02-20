@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Butter Video Player</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg-light: #DCDCDC;
+            --card-bg: rgba(255,255,255,0.85);
+            --text-dark: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Inter", system-ui, sans-serif;
+            background: var(--bg-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-dark);
+        }
+
+        .player-container {
+            width: 90%;
+            max-width: 900px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+            transition: 0.3s ease;
+        }
+
+        .player-container:hover {
+            transform: translateY(-4px);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .video-wrapper {
+            position: relative;
+            border-radius: 16px;
+            background: #000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+
+        video {
+            width: 100%;
+            display: block;
+        }
+
+        #videoWrapper .play-overlay {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        #videoWrapper.paused .play-overlay {
+            opacity: 1;
+        }
+
+        .play-overlay svg {
+            width: 64px;
+            height: 64px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+
+        .video-wrapper:hover .controls,
+        .video-wrapper.paused .controls {
+            opacity: 1;
+        }
+
+        .play-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .play-btn svg {
+            width: 32px;
+            height: 32px;
+            fill: #fff;
+        }
+
+        .playhead {
+            position: absolute;
+            right: -7px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        }
+
+        .progress-bar {
+            flex: 1;
+            position: relative;
+            height: 6px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .progress-bar:hover,
+        .progress-bar.dragging {
+            height: 10px;
+            border-radius: 5px;
+        }
+
+        .progress-filled {
+            height: 100%;
+            background: #FF6B6B;
+            border-radius: inherit;
+            position: relative;
+        }
+
+        .time-display {
+            color: #fff;
+            font-size: 0.8rem;
+        }
+
+        .time-tooltip {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            font-size: 0.8rem;
+        }
+
+        .engagement-indicator {
+            margin-top: 20px;
+            height: 8px;
+            background: rgba(0,0,0,0.08);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .engagement-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ede634, #f7941e);
+            transition: width 0.3s ease;
+        }
+
+        .footer-text {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="player-container">
+        <h1>Butter Video Player</h1>
+
+        <div class="video-wrapper paused" id="videoWrapper">
+            <video id="video">
+                <source src="web-demo.mp4" type="video/mp4">
+            </video>
+
+            <div class="play-overlay">
+                <svg viewBox="0 0 24 24" fill="#fff"><polygon points="5,3 19,12 5,21"/></svg>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn" aria-label="Play">
+                    <svg id="iconPlay" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+                    <svg id="iconPause" viewBox="0 0 24 24" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
+                </button>
+
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-filled" id="progressFilled" style="width:0%">
+                        <div class="playhead">
+                            <div class="time-tooltip" id="timeTooltip">0:00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+            </div>
+        </div>
+
+        <div class="engagement-indicator">
+            <div class="engagement-fill" id="engagementFill"></div>
+        </div>
+
+        <div class="footer-text">
+            Engagement
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById("video");
+        const videoWrapper = document.getElementById("videoWrapper");
+        const engagementFill = document.getElementById("engagementFill");
+        const playBtn = document.getElementById("playBtn");
+        const iconPlay = document.getElementById("iconPlay");
+        const iconPause = document.getElementById("iconPause");
+        const progressBar = document.getElementById("progressBar");
+        const progressFilled = document.getElementById("progressFilled");
+        const timeTooltip = document.getElementById("timeTooltip");
+        const timeDisplay = document.getElementById("timeDisplay");
+
+        const SLICE_SIZE = 0.5;
+        const ENGAGEMENT_THRESHOLD = 0.25;
+        const ENGAGEMENT_NUM = 2;
+
+        let duration = 0;
+        let totalSlices = 0;
+        let watchCounts = [];
+        let updatedLast = [];
+        let rewatchedSlices = new Set();
+        let lastTime = 0;
+        let thresholdReached = false;
+        let isDragging = false;
+        let justSeeked = false;
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return m + ":" + String(s).padStart(2, "0");
+        }
+
+        function syncPlayPauseUI() {
+            const paused = video.paused;
+            iconPlay.style.display = paused ? "" : "none";
+            iconPause.style.display = paused ? "none" : "";
+            videoWrapper.classList.toggle("paused", paused);
+        }
+
+        function updateProgressUI() {
+            const percent = (video.currentTime / duration) * 100;
+            progressFilled.style.width = percent + "%";
+            timeTooltip.textContent = formatTime(video.currentTime);
+            timeDisplay.textContent = formatTime(video.currentTime) + " / " + formatTime(duration);
+        }
+
+        function togglePlayPause() {
+            if (video.paused) {
+                video.play();
+            } else { 
+                video.pause();
+            }
+        }
+
+        function seekToPosition(e) {
+            const rect = progressBar.getBoundingClientRect();
+            const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            video.currentTime = pct * duration;
+            updateProgressUI();
+        }
+
+        videoWrapper.addEventListener("click", (e) => {
+            if (e.target.closest(".controls")) { 
+                return;
+            }
+            togglePlayPause();
+        });
+
+        playBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            togglePlayPause();
+        });
+
+        video.addEventListener("play", syncPlayPauseUI);
+        video.addEventListener("pause", syncPlayPauseUI);
+
+        progressBar.addEventListener("mousedown", (e) => {
+            e.stopPropagation();
+            isDragging = true;
+            progressBar.classList.add("dragging");
+            seekToPosition(e);
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!isDragging) return;
+            seekToPosition(e);
+        });
+
+        document.addEventListener("mouseup", () => {
+            if (!isDragging) return;
+            isDragging = false;
+            progressBar.classList.remove("dragging");
+        });
+
+        video.addEventListener("loadedmetadata", () => {
+            duration = video.duration;
+            totalSlices = Math.ceil(duration / SLICE_SIZE);
+            watchCounts = new Array(totalSlices).fill(0);
+            updatedLast = new Array(totalSlices).fill(false);
+            updateProgressUI();
+        });
+
+        video.addEventListener("seeking", () => {
+            justSeeked = true;
+        });
+
+        video.addEventListener("timeupdate", () => {
+            const currentTime = video.currentTime;
+            updateProgressUI();
+
+            if (isDragging) { 
+                return;
+            }
+            if (justSeeked) {
+                lastTime = currentTime;
+                justSeeked = false;
+                return;
+            }
+
+            const startSlice = Math.floor(lastTime / SLICE_SIZE);
+            const endSlice = Math.floor(currentTime / SLICE_SIZE);
+
+            for (let i = startSlice; i <= endSlice; i++) {
+                if (i >= 0 && i < totalSlices && !updatedLast[i]) {
+                    watchCounts[i]++;
+                    updatedLast[i] = true;
+
+                    if (watchCounts[i] === ENGAGEMENT_NUM) {
+                        rewatchedSlices.add(i);
+                    }
+                }
+            }
+
+            lastTime = currentTime;
+
+            updateEngagementBar();
+            checkThreshold();
+        });
+
+        video.addEventListener("seeked", () => {
+            const currentTime = video.currentTime;
+            updatedLast.fill(false);
+            lastTime = currentTime;
+        });
+
+        function updateEngagementBar() {
+            const rewatchedDuration = rewatchedSlices.size * SLICE_SIZE;
+            const rewatchPercentage = rewatchedDuration / duration;
+            engagementFill.style.width = (rewatchPercentage * 100) + "%";
+        }
+
+        function checkThreshold() {
+            if (thresholdReached) return;
+
+            const rewatchedDuration = rewatchedSlices.size * SLICE_SIZE;
+            const rewatchPercentage = rewatchedDuration / duration;
+
+            if (rewatchPercentage >= ENGAGEMENT_THRESHOLD) {
+                thresholdReached = true;
+                alert(`${ENGAGEMENT_THRESHOLD * 100}% of the video has been rewatched`);
+            }
+        }
+    </script>
+
+</body>
+</html>

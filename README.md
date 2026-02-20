@@ -1,3 +1,8 @@
+# Local testing
+1. Run `python3 -m http.server 8000` in this directory.
+2. Go to `localhost:8000`
+* Note: Since I'm only serving a html file and a mp4 file, I thought anything more is overkill.
+
 # Performance Characteristics
 * At every `timeupdate` event, the player updates some number of indices in `watchCounts` and `updatedLast`. Since `timeupdate` runs frequently (two runs likely fit in a time slice) and because I gate code execution in `timeupdate` with `if (video.seeking)`, this should be O(1).
 * At every `seeked` event, the playe fills the entire `updatedLast` array with `false`, which is linear time complexity with the number of time slices in the video. This could be slow if the video is long. However, if the user doesn't seek in the video much, this performance hit shouldn't be very noticable. 
